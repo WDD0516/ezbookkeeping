@@ -10,6 +10,7 @@ VERSION=""
 COMMIT_HASH=""
 BUILD_UNIXTIME="${BUILD_UNIXTIME}"
 BUILD_DATE="${BUILD_DATE}"
+BUILD_PIPELINE="${BUILD_PIPELINE}"
 PACKAGE_FILENAME=""
 DOCKER_TAG=""
 
@@ -262,7 +263,7 @@ build_docker() {
 
     echo "Building docker image \"$docker_tag\" ($RELEASE_TYPE)..."
 
-    docker build . -t "$docker_tag" --build-arg RELEASE_BUILD=$RELEASE
+    docker build . -t "$docker_tag" --build-arg RELEASE_BUILD=$RELEASE --build-arg BUILD_PIPELINE="$BUILD_PIPELINE"
 }
 
 main() {
