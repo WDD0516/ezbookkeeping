@@ -79,6 +79,10 @@
                                                 </v-menu>
                                             </v-btn>
                                             <v-btn class="ms-3" color="default" variant="outlined"
+                                                   :disabled="loading || !canAddTransaction" @click="batchAdd()">
+                                                {{ tt('Batch Add') }}
+                                            </v-btn>
+                                            <v-btn class="ms-3" color="default" variant="outlined"
                                                    :disabled="loading" @click="importTransaction"
                                                    v-if="isDataImportingEnabled()">
                                                 {{ tt('Import') }}
@@ -192,7 +196,7 @@
                                                     <template #activator="{ props }">
                                                         <div class="d-flex align-center cursor-pointer"
                                                              :class="{ 'readonly': loading, 'text-primary': query.dateType !== DateRange.ThisMonth.type }" v-bind="props">
-                                                            <span>{{ tt('Time') }}</span>
+                                                            <span>{{ tt('Date') }}</span>
                                                             <v-icon :icon="mdiMenuDown" />
                                                         </div>
                                                     </template>
@@ -668,6 +672,7 @@
                             @error="onShowDateRangeError" />
 
     <edit-dialog ref="editDialog" :type="TransactionEditPageType.Transaction" />
+    <batch-add-dialog ref="batchAddDialog" />
     <a-i-image-recognition-dialog ref="aiImageRecognitionDialog" />
     <import-dialog ref="importDialog" :persistent="true" />
 
@@ -696,6 +701,7 @@ import PaginationButtons from '@/components/desktop/PaginationButtons.vue';
 import ConfirmDialog from '@/components/desktop/ConfirmDialog.vue';
 import SnackBar from '@/components/desktop/SnackBar.vue';
 import EditDialog from './list/dialogs/EditDialog.vue';
+import BatchAddDialog from './list/dialogs/BatchAddDialog.vue';
 import AIImageRecognitionDialog from './list/dialogs/AIImageRecognitionDialog.vue';
 import ImportDialog from './import/ImportDialog.vue';
 import AccountFilterSettingsCard from '@/views/desktop/common/cards/AccountFilterSettingsCard.vue';
@@ -809,6 +815,7 @@ const props = defineProps<TransactionListProps>();
 type ConfirmDialogType = InstanceType<typeof ConfirmDialog>;
 type SnackBarType = InstanceType<typeof SnackBar>;
 type EditDialogType = InstanceType<typeof EditDialog>;
+type BatchAddDialogType = InstanceType<typeof BatchAddDialog>;
 type AIImageRecognitionDialogType = InstanceType<typeof AIImageRecognitionDialog>;
 type ImportDialogType = InstanceType<typeof ImportDialog>;
 
@@ -900,6 +907,7 @@ const tagFilterMenu = useTemplateRef<VMenu>('tagFilterMenu');
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
 const editDialog = useTemplateRef<EditDialogType>('editDialog');
+const batchAddDialog = useTemplateRef<BatchAddDialogType>('batchAddDialog');
 const aiImageRecognitionDialog = useTemplateRef<AIImageRecognitionDialogType>('aiImageRecognitionDialog');
 const importDialog = useTemplateRef<ImportDialogType>('importDialog');
 
@@ -1627,6 +1635,20 @@ function add(template?: TransactionTemplate): void {
         tagIds: objectFieldWithValueToArrayItem(queryAllFilterTagIds.value, true).join(',') || '',
         template: template
     }).then(result => {
+        if (result && result.message) {
+            snackbar.value?.showMessage(result.message);
+        }
+
+        reload(false, false);
+    }).catch(error => {
+        if (error) {
+            snackbar.value?.showError(error);
+        }
+    });
+}
+
+function batchAdd(): void {
+    batchAddDialog.value?.open().then(result => {
         if (result && result.message) {
             snackbar.value?.showMessage(result.message);
         }

@@ -2666,6 +2666,7 @@ export function useI18n() {
         formatFiscalYearStartToGregorianLikeLongMonth,
         // format date time (Gregorian calendar) functions
         formatDateTimeToGregorianDefaultDateTime: (dateTime: DateTime) => formatDateTime(dateTime, KnownDateTimeFormat.DefaultDateTime.format, getDateTimeFormatOptions({ numeralSystem: NumeralSystem.WesternArabicNumerals, calendarType: CalendarType.Gregorian })),
+        formatDateTimeToGregorianDefaultDate: (dateTime: DateTime) => formatDateTime(dateTime, KnownDateTimeFormat.DefaultDate.format, getDateTimeFormatOptions({ numeralSystem: NumeralSystem.WesternArabicNumerals, calendarType: CalendarType.Gregorian })),
         // other format date time functions
         formatDateRange,
         getTimezoneDifferenceDisplayText,

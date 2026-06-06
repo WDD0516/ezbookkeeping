@@ -36,9 +36,9 @@
             </f7-list-item>
             <f7-list-item class="list-item-with-header-and-title list-item-title-hide-overflow" header="Category" title="Category Names" v-if="transaction.type !== TransactionType.ModifyBalance"></f7-list-item>
             <f7-list-item class="list-item-with-header-and-title" header="Account" title="Account Name"></f7-list-item>
-            <f7-list-item class="list-item-with-header-and-title" header="Transaction Time" title="YYYY/MM/DD HH:mm:ss" v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction"></f7-list-item>
+            <f7-list-item class="list-item-with-header-and-title" header="Transaction Date" title="YYYY/MM/DD" v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction"></f7-list-item>
             <f7-list-item class="list-item-with-header-and-title" header="Scheduled Transaction Frequency" title="Every XXXXX" v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type"></f7-list-item>
-            <f7-list-item class="list-item-with-header-and-title list-item-title-hide-overflow list-item-no-item-after" header="Transaction Timezone" title="(UTC XX:XX) System Default" link="#" :no-chevron="mode === TransactionEditPageMode.View" v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction || (pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type)"></f7-list-item>
+            <f7-list-item class="list-item-with-header-and-title list-item-title-hide-overflow list-item-no-item-after" header="Transaction Timezone" title="(UTC XX:XX) System Default" link="#" :no-chevron="mode === TransactionEditPageMode.View" v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type"></f7-list-item>
             <f7-list-item class="list-item-with-header-and-title list-item-title-hide-overflow" header="Geographic Location" title="No Location" v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction"></f7-list-item>
             <f7-list-item header="Tags">
                 <template #footer>
@@ -243,14 +243,15 @@
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction"
             >
                 <template #header>
-                    <div class="transaction-edit-datetime-header" @click="showDateTimeDialog('time')">{{ tt('Transaction Time') }}</div>
+                    <div class="transaction-edit-datetime-header" @click="showDateTimeDialog('date')">{{ tt('Transaction Date') }}</div>
                 </template>
                 <template #title>
                     <div class="transaction-edit-datetime-title">
-                        <div @click="showDateTimeDialog('date')">{{ transactionDisplayDate }}</div>&nbsp;<div class="transaction-edit-datetime-time" @click="showDateTimeDialog('time')">{{ transactionDisplayTime }}</div>
+                        <div @click="showDateTimeDialog('date')">{{ transactionDisplayDate }}</div>
                     </div>
                 </template>
                 <date-time-selection-sheet :init-mode="transactionDateTimeSheetMode"
+                                           :date-only="true"
                                            :timezone-utc-offset="transaction.utcOffset"
                                            :model-value="transaction.time"
                                            v-model:show="showTransactionDateTimeSheet"
@@ -307,7 +308,7 @@
                 class="list-item-with-header-and-title list-item-title-hide-overflow list-item-no-item-after"
                 :class="{ 'disabled': mode === TransactionEditPageMode.Edit && transaction.type === TransactionType.ModifyBalance, 'readonly': mode === TransactionEditPageMode.View }"
                 :header="tt('Transaction Timezone')"
-                v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction || (pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type)"
+                v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type"
                 @click="showTimezonePopup = true"
             >
                 <template #title>
@@ -549,7 +550,6 @@ import type { TransactionPictureInfoBasicResponse } from '@/models/transaction_p
 import { Transaction } from '@/models/transaction.ts';
 
 import {
-    getTimezoneOffset,
     getTimezoneOffsetMinutes,
     parseDateTimeFromUnixTimeWithTimezoneOffset
 } from '@/lib/datetime.ts';
@@ -576,7 +576,6 @@ const {
     getMultiMonthdayShortNames,
     getMultiWeekdayLongNames,
     formatDateTimeToLongDate,
-    formatDateTimeToLongTime,
     formatGregorianTextualYearMonthDayToLongDate,
     parseAmountFromLocalizedNumerals
 } = useI18n();
@@ -596,7 +595,6 @@ const {
     geoLocationStatus,
     setGeoLocationByClickMap,
     transaction,
-    numeralSystem,
     currentTimezoneOffsetMinutes,
     defaultCurrency,
     firstDayOfWeek,
@@ -716,17 +714,6 @@ const transactionDisplayDate = computed<string>(() => {
 
     const dateTime = parseDateTimeFromUnixTimeWithTimezoneOffset(transaction.value.time, getTimezoneOffsetMinutes(transaction.value.time));
     return formatDateTimeToLongDate(dateTime);
-});
-
-const transactionDisplayTime = computed<string>(() => {
-    if (mode.value !== TransactionEditPageMode.View || !showTimeInDefaultTimezone.value) {
-        const dateTime = parseDateTimeFromUnixTimeWithTimezoneOffset(transaction.value.time, transaction.value.utcOffset);
-        return formatDateTimeToLongTime(dateTime);
-    }
-
-    const dateTime = parseDateTimeFromUnixTimeWithTimezoneOffset(transaction.value.time, getTimezoneOffsetMinutes(transaction.value.time));
-    const utcOffset = numeralSystem.value.replaceWesternArabicDigitsToLocalizedDigits(getTimezoneOffset(transaction.value.time));
-    return `${formatDateTimeToLongTime(dateTime)} (UTC${utcOffset})`;
 });
 
 const transactionDisplayTimezoneName = computed<string>(() => {

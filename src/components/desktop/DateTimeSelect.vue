@@ -20,7 +20,7 @@
                               :show-alternate-dates="true"
                               v-model="dateTime">
             </date-time-picker>
-            <div class="date-time-select-time-picker-container">
+            <div class="date-time-select-time-picker-container" v-if="!dateOnly">
                 <v-btn class="px-3" color="primary" variant="flat"
                        v-if="!is24Hour && isMeridiemIndicatorFirst"
                        @click="toggleMeridiemIndicator">
@@ -109,6 +109,7 @@ const props = defineProps<{
     modelValue: number;
     timezoneUtcOffset: number;
     emptyValue?: boolean;
+    dateOnly?: boolean;
     disabled?: boolean;
     readonly?: boolean;
     clearable?: boolean;
@@ -129,7 +130,8 @@ const {
     getShortDateFormatOrder,
     parseDateTimeFromLongDateTime,
     parseDateTimeFromShortDateTime,
-    formatDateTimeToLongDateTime
+    formatDateTimeToLongDateTime,
+    formatDateTimeToLongDate
 } = useI18n();
 
 const {
@@ -175,7 +177,14 @@ const dateTime = computed<Date>({
     }
 });
 
-const displayTime = computed<string>(() => props.emptyValue ? tt('None') : formatDateTimeToLongDateTime(parseDateTimeFromUnixTimeWithTimezoneOffset(props.modelValue, props.timezoneUtcOffset)));
+const displayTime = computed<string>(() => {
+    if (props.emptyValue) {
+        return tt('None');
+    }
+
+    const dateTimeValue = parseDateTimeFromUnixTimeWithTimezoneOffset(props.modelValue, props.timezoneUtcOffset);
+    return props.dateOnly ? formatDateTimeToLongDate(dateTimeValue) : formatDateTimeToLongDateTime(dateTimeValue);
+});
 
 const hourItems = computed<TimePickerValue[]>(() => generateAllHours(1, isHourTwoDigits.value));
 const minuteItems = computed<TimePickerValue[]>(() => generateAllMinutesOrSeconds(1, isMinuteTwoDigits.value));

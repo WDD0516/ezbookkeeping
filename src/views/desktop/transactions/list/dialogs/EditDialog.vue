@@ -245,11 +245,12 @@
                                         </template>
                                     </v-tooltip>
                                 </v-col>
-                                <v-col cols="12" md="6" v-if="type === TransactionEditPageType.Transaction">
+                                <v-col cols="12" v-if="type === TransactionEditPageType.Transaction">
                                     <date-time-select
                                         :readonly="mode === TransactionEditPageMode.View"
                                         :disabled="loading || submitting || (mode === TransactionEditPageMode.Edit && transaction.type === TransactionType.ModifyBalance)"
-                                        :label="tt('Transaction Time')"
+                                        :date-only="true"
+                                        :label="tt('Transaction Date')"
                                         :timezone-utc-offset="transaction.utcOffset"
                                         :model-value="transaction.time"
                                         @update:model-value="updateTransactionTime"
@@ -263,7 +264,7 @@
                                         v-model:type="transaction.scheduledFrequencyType"
                                         v-model="transaction.scheduledFrequency" />
                                 </v-col>
-                                <v-col cols="12" md="6" v-if="type === TransactionEditPageType.Transaction || (type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type)">
+                                <v-col cols="12" md="6" v-if="type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type">
                                     <v-autocomplete
                                         class="transaction-edit-timezone"
                                         item-title="displayNameWithUtcOffset"
@@ -515,6 +516,7 @@ import { Transaction } from '@/models/transaction.ts';
 
 import {
     getTimezoneOffsetMinutes,
+    getStartOfDayUnixTimeWithTimezoneOffset,
     getCurrentUnixTime
 } from '@/lib/datetime.ts';
 import { formatCoordinate } from '@/lib/coordinate.ts';
@@ -942,9 +944,11 @@ function duplicate(withTime?: boolean, withGeoLocation?: boolean): void {
     transaction.value.id = '';
 
     if (!withTime) {
-        transaction.value.time = getCurrentUnixTime();
+        const currentUnixTime = getCurrentUnixTime();
         transaction.value.timeZone = settingsStore.appSettings.timeZone;
-        transaction.value.utcOffset = getTimezoneOffsetMinutes(transaction.value.time, transaction.value.timeZone);
+        transaction.value.utcOffset = getTimezoneOffsetMinutes(currentUnixTime, transaction.value.timeZone);
+        // Transactions are date-only, so collapse the time-of-day to the start of the day
+        transaction.value.time = getStartOfDayUnixTimeWithTimezoneOffset(currentUnixTime, transaction.value.utcOffset);
     }
 
     if (!withGeoLocation) {

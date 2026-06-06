@@ -130,9 +130,6 @@
     >
         <template #item.time="{ item }">
             <span>{{ getDisplayDateTime(item) }}</span>
-            <v-chip class="ms-1" variant="flat" color="grey" size="x-small"
-                    v-if="!isSameAsDefaultTimezoneOffsetMinutes(item)">{{ getDisplayTimezone(item) }}</v-chip>
-            <v-tooltip activator="parent" v-if="!isSameAsDefaultTimezoneOffsetMinutes(item)">{{ getDisplayTimeInDefaultTimezone(item) }}</v-tooltip>
         </template>
         <template #item.type="{ item }">
             <v-chip label variant="outlined" size="x-small"
@@ -243,7 +240,7 @@ const emit = defineEmits<{
 
 const {
     tt,
-    formatDateTimeToGregorianDefaultDateTime,
+    formatDateTimeToGregorianDefaultDate,
     formatAmountToWesternArabicNumeralsWithoutDigitGrouping,
     formatAmountToLocalizedNumeralsWithCurrency,
     formatNumberToLocalizedNumerals,
@@ -260,9 +257,6 @@ const {
     totalPageCount,
     dataTableHeaders,
     getDisplayDateTime,
-    isSameAsDefaultTimezoneOffsetMinutes,
-    getDisplayTimezone,
-    getDisplayTimeInDefaultTimezone,
     getDisplayTransactionType,
     getTransactionTypeColor,
     getDisplaySourceAmount,
@@ -286,7 +280,7 @@ function buildExportResults(): { headers: string[], data: string[][] } | undefin
     const includeTags = settingsStore.appSettings.showTagInInsightsExplorerPage;
 
     const headers = [
-        tt('Transaction Time'),
+        tt('Transaction Date'),
         tt('Type'),
         tt('Category'),
         tt('Amount'),
@@ -323,7 +317,7 @@ function buildExportResults(): { headers: string[], data: string[][] } | undefin
                 const description = transaction.comment || '';
 
                 const data = [
-                    formatDateTimeToGregorianDefaultDateTime(transactionTime),
+                    formatDateTimeToGregorianDefaultDate(transactionTime),
                     type,
                     categoryName,
                     displayAmount,

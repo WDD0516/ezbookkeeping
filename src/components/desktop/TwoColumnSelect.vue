@@ -44,7 +44,7 @@
             <div ref="dropdownMenu" class="two-column-list-container" v-show="filteredItems && filteredItems.length">
                 <div class="primary-list-container">
                     <v-list :class="{ 'list-item-with-header': !!primaryHeaderField, 'list-item-with-footer': !!primaryFooterField }">
-                        <v-list-item :class="{ 'primary-list-item-selected v-list-item--active text-primary': item === selectedPrimaryItem }"
+                        <v-list-item :class="{ 'primary-list-item-selected v-list-item--active text-primary': item === activePrimaryItem }"
                                      :key="primaryKeyField ? (item as Record<string, unknown>)[primaryKeyField] as string : JSON.stringify(item)"
                                      v-for="item in filteredItems"
                                      @click="onPrimaryItemClicked(item)">
@@ -64,7 +64,7 @@
                 </div>
                 <div class="secondary-list-container">
                     <v-list :class="{ 'list-item-with-header': !!secondaryHeaderField, 'list-item-with-footer': !!secondaryFooterField }"
-                            v-if="selectedPrimaryItem && primarySubItemsField && (selectedPrimaryItem as Record<string, unknown>)[primarySubItemsField]">
+                            v-if="activePrimaryItem && primarySubItemsField && (activePrimaryItem as Record<string, unknown>)[primarySubItemsField]">
                         <v-list-item :class="{ 'secondary-list-item-selected v-list-item--active text-primary': isSecondarySelected(subItem) }"
                                      :key="secondaryKeyField ? subItem[secondaryKeyField] as string : JSON.stringify(subItem)"
                                      v-for="subItem in filteredSubItems"
@@ -150,7 +150,7 @@ const dropdownMenu = useTemplateRef<HTMLElement>('dropdownMenu');
 
 const menuState = ref<boolean>(false);
 
-const filteredSubItems = computed<Record<string, unknown>[]>(() => getFilteredSubItems(selectedPrimaryItem.value));
+const filteredSubItems = computed<Record<string, unknown>[]>(() => getFilteredSubItems(activePrimaryItem.value));
 
 const currentPrimaryValue = computed<unknown>({
     get: () => {
@@ -185,6 +185,27 @@ const currentSecondaryValue = computed<unknown>({
 
 const selectedPrimaryItem = computed<unknown>(() => getSelectedPrimaryItem(currentPrimaryValue.value));
 const selectedSecondaryItem = computed<unknown>(() => getSelectedSecondaryItem(currentSecondaryValue.value, selectedPrimaryItem.value));
+
+// activePrimaryItem is the primary item whose sub-items are shown in the right column. Normally it is the
+// selected primary item, but while filtering it falls back to the first matching primary so that a sub-item
+// matched by the filter (e.g. a secondary category) shows up immediately and can be selected directly.
+const activePrimaryItem = computed<unknown>(() => {
+    if (props.enableFilter && filterContent.value) {
+        const items = filteredItems.value;
+
+        if (items.length > 0) {
+            if (selectedPrimaryItem.value && items.indexOf(selectedPrimaryItem.value as Record<string, unknown>) >= 0) {
+                return selectedPrimaryItem.value;
+            }
+
+            return items[0];
+        }
+
+        return null;
+    }
+
+    return selectedPrimaryItem.value;
+});
 
 const noSelectionText = computed<string>(() => props.noItemText ? props.noItemText : tt('None'));
 

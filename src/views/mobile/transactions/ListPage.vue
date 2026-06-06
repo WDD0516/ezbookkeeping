@@ -17,6 +17,7 @@
             </f7-nav-title>
             <f7-nav-right :class="{ 'navbar-compact-icons': true, 'disabled': loading }">
                 <f7-link icon-f7="search" @click="toggleSearchbar"></f7-link>
+                <f7-link icon-f7="rectangle_stack_badge_plus" :class="{ 'disabled': !canAddTransaction }" @click="batchAdd"></f7-link>
                 <f7-link icon-f7="plus" :class="{ 'disabled': !canAddTransaction }" @click="add"></f7-link>
             </f7-nav-right>
 
@@ -1445,6 +1446,10 @@ function add(): void {
     }
 
     props.f7router.navigate(`/transaction/add?${params.join('&')}`);
+}
+
+function batchAdd(): void {
+    props.f7router.navigate('/transaction/batch-add');
 }
 
 function duplicate(transaction: Transaction): void {

@@ -198,6 +198,12 @@ type TransactionImportRequest struct {
 	ClientSessionId string                      `json:"clientSessionId"`
 }
 
+// TransactionBatchCreateRequest represents all parameters of batch transaction creation request (multiple transactions, usually on the same date)
+type TransactionBatchCreateRequest struct {
+	Transactions    []*TransactionCreateRequest `json:"transactions" binding:"required,min=1"`
+	ClientSessionId string                      `json:"clientSessionId"`
+}
+
 // TransactionImportProcessRequest represents all parameters of transaction import process request
 type TransactionImportProcessRequest struct {
 	ClientSessionId string `form:"client_session_id"`

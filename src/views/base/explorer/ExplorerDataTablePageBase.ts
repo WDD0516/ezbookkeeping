@@ -25,6 +25,7 @@ export function useExplorerDataTablePageBase() {
         tt,
         getCurrentNumeralSystemType,
         formatDateTimeToLongDateTime,
+        formatDateTimeToLongDate,
         formatAmountToLocalizedNumeralsWithCurrency,
         formatNumberToLocalizedNumerals
     } = useI18n();
@@ -102,7 +103,7 @@ export function useExplorerDataTablePageBase() {
     const dataTableHeaders = computed<object[]>(() => {
         const headers: object[] = [];
 
-        headers.push({ key: 'time', value: 'time', title: tt('Transaction Time'), sortable: true, nowrap: true });
+        headers.push({ key: 'time', value: 'time', title: tt('Transaction Date'), sortable: true, nowrap: true });
         headers.push({ key: 'type', value: 'type', title: tt('Type'), sortable: true, nowrap: true });
         headers.push({ key: 'secondaryCategoryName', value: 'secondaryCategoryName', title: tt('Category'), sortable: true, nowrap: true });
         headers.push({ key: 'sourceAmount', value: 'sourceAmount', title: tt('Amount'), sortable: true, nowrap: true });
@@ -118,8 +119,9 @@ export function useExplorerDataTablePageBase() {
     });
 
     function getDisplayDateTime(transaction: TransactionInsightDataItem): string {
+        // Transactions are date-only, so only the date is shown
         const dateTime = parseDateTimeFromUnixTimeWithTimezoneOffset(transaction.time, transaction.utcOffset);
-        return formatDateTimeToLongDateTime(dateTime);
+        return formatDateTimeToLongDate(dateTime);
     }
 
     function isSameAsDefaultTimezoneOffsetMinutes(transaction: TransactionInsightDataItem): boolean {

@@ -40,6 +40,7 @@ import {
     getTimezoneOffsetMinutes,
     getSameDateTimeWithCurrentTimezone,
     parseDateTimeFromUnixTimeWithBrowserTimezone,
+    getStartOfDayUnixTimeWithTimezoneOffset,
     getCurrentUnixTime
 } from '@/lib/datetime.ts';
 
@@ -373,8 +374,13 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     }
 
     function createNewTransactionModel(transactionType?: number): Transaction | TransactionTemplate {
-        const now: number = getCurrentUnixTimeForNewTransaction();
         const currentTimezone: string = settingsStore.appSettings.timeZone;
+        const currentUnixTime: number = getCurrentUnixTimeForNewTransaction();
+        const utcOffset: number = getTimezoneOffsetMinutes(currentUnixTime, currentTimezone);
+        // Transactions are date-only, so collapse the time-of-day to the start of the day
+        const now: number = type === TransactionEditPageType.Transaction
+            ? getStartOfDayUnixTimeWithTimezoneOffset(currentUnixTime, utcOffset)
+            : currentUnixTime;
 
         let defaultType: TransactionType = TransactionType.Expense;
 
@@ -384,7 +390,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
             defaultType = TransactionType.Transfer;
         }
 
-        let newTransaction: Transaction | TransactionTemplate = Transaction.createNewTransaction(defaultType, now, currentTimezone, getTimezoneOffsetMinutes(now, currentTimezone));
+        let newTransaction: Transaction | TransactionTemplate = Transaction.createNewTransaction(defaultType, now, currentTimezone, utcOffset);
 
         if (type === TransactionEditPageType.Template) {
             newTransaction = TransactionTemplate.createNewTransactionTemplate(newTransaction);
@@ -429,8 +435,8 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     }
 
     function updateTransactionTime(newTime: number): void {
-        transaction.value.time = newTime;
-        updateTransactionTimezone(transaction.value.timeZone ?? '');
+        // Transactions are date-only, so collapse the picked time to the start of the day
+        transaction.value.time = getStartOfDayUnixTimeWithTimezoneOffset(newTime, transaction.value.utcOffset);
     }
 
     function updateTransactionTimezone(timezoneName: string): void {

@@ -602,6 +602,11 @@ export interface TransactionImportRequest {
     readonly clientSessionId: string;
 }
 
+export interface TransactionBatchCreateRequest {
+    readonly transactions: TransactionCreateRequest[];
+    readonly clientSessionId: string;
+}
+
 export interface TransactionListByMaxTimeRequest {
     readonly maxTime: number;
     readonly minTime: number;
