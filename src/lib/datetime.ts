@@ -659,6 +659,15 @@ export function parseDateTimeFromUnixTimeWithTimezoneOffset(unixTime: number, ut
     return MomentDateTime.ofUnixTime(unixTime).setTimezoneByUtcOffsetMinutes(utcOffset);
 }
 
+// getStartOfDayUnixTimeWithTimezoneOffset returns the unix time of the start of the day (00:00:00) that
+// contains the given unix time, evaluated in the specified utc offset. It is used to make transactions
+// date-only by collapsing the time-of-day to the beginning of the day.
+export function getStartOfDayUnixTimeWithTimezoneOffset(unixTime: number, utcOffset: number): number {
+    const dateTime = parseDateTimeFromUnixTimeWithTimezoneOffset(unixTime, utcOffset);
+    const startOfDay = getYearMonthDayDateTime(dateTime.getGregorianCalendarYear(), dateTime.getGregorianCalendarMonth(), dateTime.getGregorianCalendarDay());
+    return getSameDateTimeWithTimezoneOffset(startOfDay, utcOffset).getUnixTime();
+}
+
 export function parseDateTimeFromKnownDateTimeFormat(dateTime: string, format: KnownDateTimeFormat): DateTime | undefined {
     const m = moment(dateTime, format.format, true);
 

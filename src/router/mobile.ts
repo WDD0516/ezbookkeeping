@@ -9,6 +9,7 @@ import UnlockPage from '@/views/mobile/UnlockPage.vue';
 
 import TransactionListPage from '@/views/mobile/transactions/ListPage.vue';
 import TransactionEditPage from '@/views/mobile/transactions/EditPage.vue';
+import TransactionBatchAddPage from '@/views/mobile/transactions/BatchAddPage.vue';
 import TransactionAmountFilterPage from '@/views/mobile/transactions/AmountFilterPage.vue';
 
 import AccountListPage from '@/views/mobile/accounts/ListPage.vue';
@@ -169,6 +170,11 @@ const routes: Router.RouteParameters[] = [
     {
         path: '/transaction/add',
         async: asyncResolve(TransactionEditPage),
+        beforeEnter: [checkLogin]
+    },
+    {
+        path: '/transaction/batch-add',
+        async: asyncResolve(TransactionBatchAddPage),
         beforeEnter: [checkLogin]
     },
     {

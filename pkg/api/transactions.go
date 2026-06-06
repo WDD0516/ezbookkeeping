@@ -2624,6 +2624,141 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 	return count, nil
 }
 
+// TransactionBatchCreateHandler creates multiple transactions (usually on the same date but with different types/amounts) for current user
+func (a *TransactionsApi) TransactionBatchCreateHandler(c *core.WebContext) (any, *errs.Error) {
+	var batchCreateReq models.TransactionBatchCreateRequest
+	err := c.ShouldBindJSON(&batchCreateReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionBatchCreateHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	clientTimezone, err := c.GetClientTimezone()
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionBatchCreateHandler] cannot get client timezone, because %s", err.Error())
+		return nil, errs.ErrClientTimezoneOffsetInvalid
+	}
+
+	uid := c.GetCurrentUid()
+
+	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && batchCreateReq.ClientSessionId != "" {
+		found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_BATCH_CREATE_TRANSACTIONS, uid, batchCreateReq.ClientSessionId)
+
+		if found {
+			items := strings.Split(remark, ":")
+
+			if len(items) >= 2 {
+				if items[0] == "finished" {
+					log.Infof(c, "[transactions.TransactionBatchCreateHandler] another \"%s\" transactions has been created for user \"uid:%d\"", items[1], uid)
+					count, err := utils.StringToInt(items[1])
+
+					if err == nil {
+						return count, nil
+					}
+				} else if items[0] == "processing" {
+					return nil, errs.ErrRepeatedRequest
+				}
+			} else {
+				log.Warnf(c, "[transactions.TransactionBatchCreateHandler] another batch create task may be executing, but remark \"%s\" is invalid", remark)
+			}
+		}
+	}
+
+	newTransactionTagIdsMap := make(map[int][]int64, len(batchCreateReq.Transactions))
+
+	for i := 0; i < len(batchCreateReq.Transactions); i++ {
+		transactionCreateReq := batchCreateReq.Transactions[i]
+		tagIds, err := utils.StringArrayToInt64Array(transactionCreateReq.TagIds)
+
+		if err != nil {
+			log.Warnf(c, "[transactions.TransactionBatchCreateHandler] parse tag ids failed of transaction \"index:%d\", because %s", i, err.Error())
+			return nil, errs.ErrTransactionTagIdInvalid
+		}
+
+		if len(tagIds) > models.MaximumTagsCountOfTransaction {
+			return nil, errs.ErrTransactionHasTooManyTags
+		}
+
+		if transactionCreateReq.Type < models.TRANSACTION_TYPE_MODIFY_BALANCE || transactionCreateReq.Type > models.TRANSACTION_TYPE_TRANSFER {
+			log.Warnf(c, "[transactions.TransactionBatchCreateHandler] transaction type of transaction \"index:%d\" is invalid", i)
+			return nil, errs.ErrTransactionTypeInvalid
+		}
+
+		// Balance modification transactions are not supported in batch creation
+		if transactionCreateReq.Type == models.TRANSACTION_TYPE_MODIFY_BALANCE {
+			log.Warnf(c, "[transactions.TransactionBatchCreateHandler] balance modification transaction \"index:%d\" is not allowed in batch creation", i)
+			return nil, errs.ErrTransactionTypeInvalid
+		}
+
+		if transactionCreateReq.Type != models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.DestinationAccountId != 0 {
+			log.Warnf(c, "[transactions.TransactionBatchCreateHandler] non-transfer transaction \"index:%d\" destination account cannot be set", i)
+			return nil, errs.ErrTransactionDestinationAccountCannotBeSet
+		} else if transactionCreateReq.Type == models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.SourceAccountId == transactionCreateReq.DestinationAccountId {
+			log.Warnf(c, "[transactions.TransactionBatchCreateHandler] transfer transaction \"index:%d\" source account must not be destination account", i)
+			return nil, errs.ErrTransactionSourceAndDestinationIdCannotBeEqual
+		}
+
+		if transactionCreateReq.Type != models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.DestinationAmount != 0 {
+			log.Warnf(c, "[transactions.TransactionBatchCreateHandler] non-transfer transaction \"index:%d\" destination amount cannot be set", i)
+			return nil, errs.ErrTransactionDestinationAmountCannotBeSet
+		}
+
+		newTransactionTagIdsMap[i] = tagIds
+	}
+
+	user, err := a.users.GetUserById(c, uid)
+
+	if err != nil {
+		if !errs.IsCustomError(err) {
+			log.Errorf(c, "[transactions.TransactionBatchCreateHandler] failed to get user, because %s", err.Error())
+		}
+
+		return nil, errs.ErrUserNotFound
+	}
+
+	newTransactions := make([]*models.Transaction, len(batchCreateReq.Transactions))
+
+	for i := 0; i < len(batchCreateReq.Transactions); i++ {
+		newTransactions[i] = a.createNewTransactionModel(uid, batchCreateReq.Transactions[i], c.ClientIP())
+	}
+
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, newTransactions)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionBatchCreateHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	for i := 0; i < len(newTransactions); i++ {
+		transaction := newTransactions[i]
+		transactionEditable := user.CanEditTransactionByTransactionTime(transaction.TransactionTime, clientTimezone, allUsedAccounts[transaction.AccountId], allUsedAccounts[transaction.RelatedAccountId])
+
+		if !transactionEditable {
+			log.Warnf(c, "[transactions.TransactionBatchCreateHandler] transaction \"index:%d\" is not editable for user \"uid:%d\"", i, uid)
+			return nil, errs.ErrCannotCreateTransactionWithThisTransactionTime
+		}
+	}
+
+	a.SetSubmissionRemarkIfEnable(duplicatechecker.DUPLICATE_CHECKER_TYPE_BATCH_CREATE_TRANSACTIONS, uid, batchCreateReq.ClientSessionId, "processing")
+
+	err = a.transactions.BatchCreateTransactions(c, user.Uid, newTransactions, newTransactionTagIdsMap, nil)
+	count := len(newTransactions)
+
+	if err != nil {
+		a.RemoveSubmissionRemarkIfEnable(duplicatechecker.DUPLICATE_CHECKER_TYPE_BATCH_CREATE_TRANSACTIONS, uid, batchCreateReq.ClientSessionId)
+		log.Errorf(c, "[transactions.TransactionBatchCreateHandler] failed to batch create %d transactions for user \"uid:%d\", because %s", count, uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	log.Infof(c, "[transactions.TransactionBatchCreateHandler] user \"uid:%d\" has batch created %d transactions successfully", uid, count)
+
+	a.SetSubmissionRemarkIfEnable(duplicatechecker.DUPLICATE_CHECKER_TYPE_BATCH_CREATE_TRANSACTIONS, uid, batchCreateReq.ClientSessionId, fmt.Sprintf("finished:%d", count))
+
+	return count, nil
+}
+
 // TransactionImportProcessHandler returns the process of specified transaction import task by request parameters for current user
 func (a *TransactionsApi) TransactionImportProcessHandler(c *core.WebContext) (any, *errs.Error) {
 	var transactionImportProcessReq models.TransactionImportProcessRequest

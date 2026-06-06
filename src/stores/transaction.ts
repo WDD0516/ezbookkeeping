@@ -1140,6 +1140,43 @@ export const useTransactionsStore = defineStore('transactions', () => {
         });
     }
 
+    function saveBatchTransactions({ transactions, clientSessionId }: { transactions: TransactionCreateRequest[], clientSessionId: string }): Promise<number> {
+        return new Promise((resolve, reject) => {
+            services.batchAddTransactions({ transactions, clientSessionId }).then(response => {
+                const data = response.data;
+
+                if (!data || !data.success || (!data.result && data.result !== 0)) {
+                    reject({ message: 'Unable to add transaction' });
+                    return;
+                }
+
+                if (!transactionListStateInvalid.value) {
+                    updateTransactionListInvalidState(true);
+                }
+
+                updateStoreInvalidState({
+                    reconciliationStatement: true,
+                    accountList: true,
+                    overview: true,
+                    statistics: true,
+                    explorer: true
+                });
+
+                resolve(data.result);
+            }).catch(error => {
+                logger.error('failed to batch add transactions', error);
+
+                if (error.response && error.response.data && error.response.data.errorMessage) {
+                    reject({ error: error.response.data });
+                } else if (!error.processed) {
+                    reject({ message: 'Unable to add transaction' });
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    }
+
     function batchUpdateTransactionCategories({ transactionIds, categoryId }: { transactionIds: string[], categoryId: string }): Promise<boolean> {
         return new Promise((resolve, reject) => {
             services.batchUpdateTransactionCategories({ transactionIds, categoryId }).then(response => {
@@ -1674,6 +1711,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
         getReconciliationStatements,
         getTransaction,
         saveTransaction,
+        saveBatchTransactions,
         batchUpdateTransactionCategories,
         batchUpdateTransactionAccounts,
         batchAddTagsToTransaction,
