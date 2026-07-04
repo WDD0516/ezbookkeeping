@@ -148,6 +148,8 @@ export function useTransactionBatchAddPageBase() {
 
     function updateTransactionDate(newTime: number): void {
         transactionDate.value = getStartOfDayUnixTimeWithTimezoneOffset(newTime, utcOffset.value);
+        // Remember the picked date immediately (not only on save) so closing and reopening keeps it.
+        transactionsStore.lastUsedTransactionDate = transactionDate.value;
     }
 
     function getRowProblemMessage(row: Transaction): string | null {
