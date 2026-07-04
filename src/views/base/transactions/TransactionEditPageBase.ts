@@ -443,7 +443,15 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
 
     function updateTransactionTime(newTime: number): void {
         // Transactions are date-only, so collapse the picked time to the start of the day
-        transaction.value.time = getStartOfDayUnixTimeWithTimezoneOffset(newTime, transaction.value.utcOffset);
+        const startOfDayTime: number = getStartOfDayUnixTimeWithTimezoneOffset(newTime, transaction.value.utcOffset);
+        transaction.value.time = startOfDayTime;
+
+        // Remember the picked date as the sticky default for the next new transaction as soon as it is
+        // picked (not only on save), so closing and reopening the add dialog keeps the chosen date.
+        // Only when adding a regular transaction — editing an existing transaction or a template must not change it.
+        if (mode.value === TransactionEditPageMode.Add && type === TransactionEditPageType.Transaction) {
+            transactionsStore.lastUsedTransactionDate = startOfDayTime;
+        }
     }
 
     function updateTransactionTimezone(timezoneName: string): void {
