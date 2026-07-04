@@ -127,6 +127,11 @@ export const useTransactionsStore = defineStore('transactions', () => {
     });
 
     const transactions = ref<TransactionMonthList[]>([]);
+    // Session-scoped "sticky" date: the start-of-day unix time of the last transaction the user added.
+    // Used as the default date when adding/batch-adding a new transaction, so entering several
+    // transactions for the same (often past) date does not require re-picking the date each time.
+    // Stays null (falling back to today) until the first add of the session and resets on reload.
+    const lastUsedTransactionDate = ref<number | null>(null);
     const transactionsNextTimeId = ref<number>(0);
     const transactionListStateInvalid = ref<boolean>(true);
     const transactionReconciliationStatementStateInvalid = ref<boolean>(true);
@@ -1069,6 +1074,10 @@ export const useTransactionsStore = defineStore('transactions', () => {
     }
 
     function saveTransaction({ transaction, defaultCurrency, isEdit, clientSessionId }: { transaction: Transaction, defaultCurrency: string, isEdit: boolean, clientSessionId: string }): Promise<Transaction> {
+        // Capture the submitted date before the response shadows `transaction`, so a successful
+        // add can record it as the sticky default for the next new transaction.
+        const submittedTransactionTime = transaction.time;
+
         return new Promise((resolve, reject) => {
             let promise: ApiResponsePromise<TransactionInfoResponse>;
 
@@ -1103,6 +1112,8 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 const transaction = Transaction.of(data.result);
 
                 if (!isEdit) {
+                    lastUsedTransactionDate.value = submittedTransactionTime;
+
                     if (!transactionListStateInvalid.value) {
                         updateTransactionListInvalidState(true);
                     }
@@ -1148,6 +1159,11 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 if (!data || !data.success || (!data.result && data.result !== 0)) {
                     reject({ message: 'Unable to add transaction' });
                     return;
+                }
+
+                // A batch shares a single date across all rows; record it as the sticky default.
+                if (transactions.length > 0 && transactions[0]) {
+                    lastUsedTransactionDate.value = transactions[0].time;
                 }
 
                 if (!transactionListStateInvalid.value) {
@@ -1680,6 +1696,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
         transactionDraft,
         transactionsFilter,
         transactions,
+        lastUsedTransactionDate,
         transactionsNextTimeId,
         transactionListStateInvalid,
         transactionReconciliationStatementStateInvalid,

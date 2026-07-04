@@ -377,10 +377,17 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         const currentTimezone: string = settingsStore.appSettings.timeZone;
         const currentUnixTime: number = getCurrentUnixTimeForNewTransaction();
         const utcOffset: number = getTimezoneOffsetMinutes(currentUnixTime, currentTimezone);
-        // Transactions are date-only, so collapse the time-of-day to the start of the day
-        const now: number = type === TransactionEditPageType.Transaction
-            ? getStartOfDayUnixTimeWithTimezoneOffset(currentUnixTime, utcOffset)
-            : currentUnixTime;
+        // Transactions are date-only, so collapse the time-of-day to the start of the day. Default a
+        // new transaction to the date the user last added this session (sticky), falling back to today,
+        // so entering several transactions for the same (often past) date doesn't require re-picking it.
+        // Templates keep the current time as-is (they are not date-only and have no sticky behaviour).
+        let now: number = currentUnixTime;
+
+        if (type === TransactionEditPageType.Transaction) {
+            const lastUsedDate: number | null = transactionsStore.lastUsedTransactionDate;
+            const baseTime: number = lastUsedDate !== null ? lastUsedDate : currentUnixTime;
+            now = getStartOfDayUnixTimeWithTimezoneOffset(baseTime, utcOffset);
+        }
 
         let defaultType: TransactionType = TransactionType.Expense;
 
