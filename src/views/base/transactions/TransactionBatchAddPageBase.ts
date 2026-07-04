@@ -54,7 +54,21 @@ export function useTransactionBatchAddPageBase() {
     }
 
     const utcOffset = ref<number>(getTimezoneOffsetMinutes(getCurrentUnixTime(), currentTimezone));
-    const transactionDate = ref<number>(getStartOfTodayUnixTime());
+
+    // Default to the date of the last transaction the user added this session (collapsed to the
+    // start of the day), so batch-adding several days of history in a row doesn't require re-picking
+    // the date each time. Falls back to today when nothing has been added yet.
+    function getInitialTransactionDate(): number {
+        const lastUsedDate: number | null = transactionsStore.lastUsedTransactionDate;
+
+        if (lastUsedDate !== null) {
+            return getStartOfDayUnixTimeWithTimezoneOffset(lastUsedDate, utcOffset.value);
+        }
+
+        return getStartOfTodayUnixTime();
+    }
+
+    const transactionDate = ref<number>(getInitialTransactionDate());
 
     const showAccountBalance = computed<boolean>(() => settingsStore.appSettings.showAccountBalance);
     const customAccountCategoryOrder = computed<string>(() => settingsStore.appSettings.accountCategoryOrders);
@@ -187,7 +201,7 @@ export function useTransactionBatchAddPageBase() {
     function reset(): void {
         clientSessionId.value = generateRandomUUID();
         utcOffset.value = getTimezoneOffsetMinutes(getCurrentUnixTime(), currentTimezone);
-        transactionDate.value = getStartOfTodayUnixTime();
+        transactionDate.value = getInitialTransactionDate();
         rows.value = [createNewRow()];
         submitting.value = false;
     }
